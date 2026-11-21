@@ -220,7 +220,7 @@ func TestWatchNewSubdirectory(t *testing.T) {
 	wait := func() {
 		t.Helper()
 		result := make(chan error, 1)
-		go func() { result <- waitForChange(w) }()
+		go func() { result <- waitForChange(w, nil) }()
 		select {
 		case err := <-result:
 			if err != nil {
