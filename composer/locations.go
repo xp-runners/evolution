@@ -25,11 +25,14 @@ func xdgConfigDir() (string, bool) {
 
 // Locations returns composer locations for the current operating system
 func Locations() []string {
-	return LocationsOn(runtime.GOOS)
+	return LocationsOn(runtime.GOOS, func(file string) bool {
+		 info, err := os.Stat(file)
+		 return err == nil && info.IsDir()
+	})
 }
 
 // LocationsFor returns composer locations on a given operating system
-func LocationsOn(sys string) []string {
+func LocationsOn(sys string, exists func(file string) bool) []string {
 	locations := []string{}
 
 	if wd, err := os.Getwd(); err == nil {
@@ -47,7 +50,7 @@ func LocationsOn(sys string) []string {
 
 	default:
 		legacy := filepath.Join(os.Getenv("HOME"), ".composer")
-		if info, err := os.Stat(legacy); err == nil && info.IsDir() {
+		if exists(legacy) {
 			locations = append(locations, filepath.Join(legacy, VendorDir))
 		} else if dir, ok := xdgConfigDir(); ok {
 			locations = append(locations, filepath.Join(dir, "composer", VendorDir))
