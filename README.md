@@ -20,3 +20,7 @@ GOOS=linux GOARCH=amd64 go build -o xp .
 GOOS=darwin GOARCH=arm64 go build -o xp .
 GOOS=windows GOARCH=amd64 go build -o xp.exe .
 ```
+
+## Terminal utility for Windows
+
+Build the standalone `tput` with `go build -o tput.exe ./cmd/tput`. It supports `lines`, `cols`, and `bel`, reads one capability per line with `-S`, and prints the runner version with `-V`. When no console size is available, `lines` and `cols` print `0`.
