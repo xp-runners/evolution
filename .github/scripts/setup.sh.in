@@ -1,0 +1,232 @@
+#!/bin/sh
+
+set -e
+set -u
+
+display() {
+  lines=$(wc -l "$TEMPFILE" | cut -d ' ' -f 1)
+  case $lines in
+    0) echo ;;
+    1) head -1 $TEMPFILE ;;
+    *) echo ; cat $TEMPFILE | sed -e 's/^/  /g'
+  esac
+}
+
+run() {
+  message=$1
+  command=$2
+  fix=${3-No}
+  type=${4-Error}
+
+  printf "> $message...\r"
+  eval $command > $TEMPFILE 2>&1 && { echo "✓ $(display)$SPACE"; return 0; } || {
+    printf "\033[31;1m✕ $type #$?: $(display)$SPACE\n"
+    printf "  Cannot verify $message executing \`$command'\033[0m\n"
+
+    if [ Warning = $type ] ; then
+      echo '  Ignoring for the moment'
+      return 0
+    fi
+
+    if [ No = "$fix" ] || [ Unattended = $MODE ] ; then
+      echo 'Installation cannot continue.'
+      return 1
+    fi
+
+    echo "  This can be fixed by running \`$fix'"
+    echo
+    if [ No = ${4-No} ] ; then
+      printf '  Should we do this now ([y]es/[n]o)? '
+    else
+      printf '  Should we do this now ([y]es/[n]o/[f]orce)? '
+    fi
+    read answer </dev/fd/3
+
+    case $answer in
+      y|Y|yes)
+        eval $fix
+        run "$message" "$command"
+        return $?
+        ;;
+      f|F|force)
+        echo '  Ignoring for the moment'
+        return 0
+        ;;
+      *)
+        echo 'OK, you need to fix this yourself, then.'
+        return 2
+        ;;
+    esac
+  }
+}
+
+download() {
+  url=$1
+  target=$2
+
+  printf '> Download'
+  if which curl >/dev/null 2>&1; then
+    curl '-#' -L "$url" -o $target
+  elif which wget >/dev/null 2>&1; then
+    wget -nv "$url" -O $target
+  fi
+  return $?
+}
+
+commands() {
+  for command in "$@"; do
+    which $command 2>/dev/null && return 0
+  done
+  echo "Cannot find $* in path"
+  return 127
+}
+
+bundle_php() {
+  releases=http://windows.php.net/downloads/releases/
+
+  download $releases - | grep -Eo 'php-[0-9.]+-nts-Win32-[VCvcsx0-9-]+.zip' | sort -rn | uniq > $TEMPFILE
+
+  echo "> Select which PHP version you want to use"
+  nl -b a $TEMPFILE
+
+  lines=$(wc -l "$TEMPFILE" | cut -d ' ' -f 1)
+  while : ; do
+    printf '  Select: '
+    read choice </dev/fd/3
+    test $choice -ge 1 2>/dev/null && test $choice -le $lines 2>/dev/null && break
+    printf "\033[31;1m✕ Obviously not a valid choice.\033[0m Use Ctrl+C to exit.\n"
+  done
+
+  release=$(head -$choice $TEMPFILE | tail -1)
+  test -f $release || download $releases/$release $release
+
+  pwd=$(cygpath -w $(pwd) | sed -e 's#\\#\\\\#g')
+  target=$(basename $release .zip)
+  mkdir -p $target
+  echo "var shell = WSH.createObject('Shell.Application');" > $TEMPFILE
+  echo "var origin = shell.nameSpace('$pwd\\\\$release').items();" >> $TEMPFILE
+  echo "var target = shell.nameSpace('$pwd\\\\$target');" >> $TEMPFILE
+  echo "for (var i = 0; i < origin.count; i++) {" >> $TEMPFILE
+  echo "  WScript.Echo('  ' + origin.item(i));" >> $TEMPFILE
+  echo "  target.copyHere(origin.item(i), 20);" >> $TEMPFILE
+  echo "}"  >> $TEMPFILE
+  echo "> Extracting into $target"
+  cscript //NoLogo //e:JScript $(cygpath -w $TEMPFILE)
+  rm $release
+  PATH=$PATH:$target
+  return 0
+}
+
+configure() {
+  printf "> Configuration\r"
+  if [ -f xp.ini ] ; then
+    echo "! Not overwriting existing $(ls -al xp.ini)"
+  else
+    for option in "$@"; do
+      echo $option >> xp.ini
+    done
+    echo "✓ Created $(ls -al xp.ini)"
+  fi
+  cat xp.ini | sed -e 's/^/  /g'
+}
+
+main() {
+  printf "\033[32;1mXP Runners setup (@VERSION@)\033[0m\n"
+  echo '(c) 2017-2026 https://github.com/xp-runners/evolution/'
+  echo
+
+  temp=${TMPDIR-${TEMP-${TMP-/tmp}}}
+  TEMPFILE=$(mktemp -u "$temp/tmp.XXXXXXXXXX")
+  SPACE='                  '
+  MODE=Default
+  CHECKS=Error
+  FORCE=
+  while getopts :uf flag ; do
+    case $flag in
+      u) MODE=Unattended ; echo '> Unattended mode' ;;
+      f) CHECKS=Warning ; echo '> Ignoring errors from prerequisites checks' ;;
+    esac
+  done
+
+  if [ ! -t 1 ] ; then
+    echo '> Not running inside terminal, disabling user-interactive mode'
+  else
+    # Create FD3 to read user-interactive input from. As we're already being
+    # piped to, so reading from STDIN is going to result in the wrong outcome.
+    exec 3<&1
+  fi
+
+  ENTRYPOINTS='class-main.php web-main.php'
+  OS=$(uname)
+  if [ 'Linux' = "$OS" ] ; then
+    if [ -f /etc/os-release ] ; then 
+      OS=$(grep ^NAME= /etc/os-release | cut -d = -f2 | sed -e 's/"//g')
+    elif [ $(which lsb_release) ] ; then
+      OS=$(lsb_release -si)
+    fi
+  fi
+  case $OS in
+    CYGWIN*)
+      run 'Cygwin' "uname -a"
+      run 'Tar' "commands tar" "/cygwinsetup.exe -P tar -q -n -W"
+      run 'Curl' "commands curl wget" "/cygwinsetup.exe -P curl -q -n -W"
+      run '.NET Framework installed' "ls -d $(cygpath -m $WINDIR)/Microsoft.NET/Framework*/v*" No $CHECKS
+      run 'PHP runtime available' "php.exe -v" "bundle_php" $CHECKS
+
+      php=$(which php.exe 2>/dev/null || echo No)
+      if [ No = $php ] ; then
+        echo "! No PHP runtime, cannot create xp.ini"
+      else
+        ver=$($php -r 'echo substr(PHP_VERSION, 0, 3);')
+        configure \
+          "rt=$ver" "" \
+          "[runtime@$ver]" \
+          "default=$(cygpath -w $php)" \
+          "extension_dir=$(cygpath -w $(dirname $php))\\ext" \
+          "extension=php_com_dotnet.dll"
+      fi
+
+      SOURCE="xp-windows-amd64-@VERSION@.tar.gz"
+      EXTRACT="xp.exe $ENTRYPOINTS"
+
+      # Use current directory in case curl is its Windows version
+      temp=.
+      ;;
+
+    Ubuntu*|Debian*)
+      run 'Linux' "uname -a"
+      run 'Tar' "commands tar" "sudo apt -y install tar"
+      run 'Curl' "commands curl wget" "sudo apt -y install curl"
+      run 'PHP runtime available' "php -v" "sudo apt -y install php-cli" $CHECKS
+
+      php=$(which php 2>/dev/null || echo No)
+      if [ No = "$php" ] ; then
+        echo "! No PHP runtime, cannot create xp.ini"
+      else
+        ver=$($php -r 'echo substr(PHP_VERSION, 0, 3);')
+        configure "rt=$ver" "" "[runtime@$ver]" "default=$php"
+      fi
+
+      SOURCE="xp-linux-amd64-@VERSION@.tar.gz"
+      EXTRACT="xp $ENTRYPOINTS"
+      ;;
+
+    *)
+      run 'Unknown system' "uname -a"
+      exit
+      ;;
+  esac
+
+  TARFILE=$(mktemp -u "$temp/tmp.XXXXXXXXXX")
+  echo "> Download $SOURCE"
+  download https://github.com/xp-runners/reference/releases/download/v@VERSION@/$SOURCE $TARFILE
+
+  run 'Extract' "tar xvfz $TARFILE $EXTRACT"
+  run 'Test' "ls -al $(pwd)/xp.exe"
+
+  echo
+  echo "Done, runners installed to $(pwd)"
+  rm "$TEMPFILE" "$TARFILE"
+}
+
+main "$@"
