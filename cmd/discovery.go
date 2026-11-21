@@ -78,27 +78,37 @@ func systemTimezone() string {
 }
 
 func (c *commandline) list(out io.Writer) (int, error) {
+	fmt.Fprintf(out, "\033[33m@%s\033[0m\n", os.Args[0])
 	fmt.Fprintln(out, "XP Subcommands")
-	fmt.Fprintf(out, "\nBuiltin @ %s\n\n", c.Version)
+	fmt.Fprintln(out, "════════════════════════════════════════════════════════════════════════")
+	fmt.Fprintln(out)
+
+	// Builtin
+	fmt.Fprintf(out, "> Builtin @ %s\n\n", c.Version)
 	builtins := []string{"list"}
 	for name := range commands {
 		builtins = append(builtins, name)
 	}
 	sort.Strings(builtins)
 	for _, name := range builtins {
-		fmt.Fprintf(out, "$ xp %s\n", name)
+		fmt.Fprintf(out, "  $ xp %s\n", name)
 	}
+
+	// Scripts
 	if c.project != nil && len(c.project.Scripts) > 0 {
-		fmt.Fprintln(out, "\nDefined via scripts in @ composer.json")
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "> Defined via scripts in @ composer.json")
 		var names []string
 		for name := range c.project.Scripts {
 			names = append(names, name)
 		}
 		sort.Strings(names)
 		for _, name := range names {
-			fmt.Fprintf(out, "$ xp %s\n", name)
+			fmt.Fprintf(out, "  $ xp %s\n", name)
 		}
 	}
+
+	// Installed
 	listDir := func(kind, dir string) {
 		files, err := os.ReadDir(filepath.Join(dir, "bin"))
 		if err != nil {
@@ -124,10 +134,11 @@ func (c *commandline) list(out io.Writer) (int, error) {
 				continue
 			}
 			if !found {
-				fmt.Fprintf(out, "\n%s %s\n\n", kind, dir)
+				fmt.Fprintln(out)
+				fmt.Fprintf(out, "> %s %s\n\n", kind, dir)
 				found = true
 			}
-			fmt.Fprintf(out, "$ xp %s (from %s/%s)\n", p.commandName(), p.Name, p.Package)
+			fmt.Fprintf(out, "  $ xp %s (from \033[4;34m%s/%s\033[0m)\n", p.commandName(), p.Name, p.Package)
 		}
 	}
 	for _, m := range c.Modules {

@@ -58,7 +58,9 @@ var options = map[string]func(c *commandline, value string){
 	"-repeat": func(c *commandline, value string) {
 		c.Model = &runrepeatedly{Declaration: value}
 	},
-	"-env": func(c *commandline, value string) { c.envFiles = append(c.envFiles, value) },
+	"-env": func(c *commandline, value string) {
+		c.envFiles = append(c.envFiles, value)
+	},
 	"-c": func(c *commandline, value string) {
 		if info, err := os.Stat(value); err == nil && info.IsDir() {
 			value = filepath.Join(value, ini)
