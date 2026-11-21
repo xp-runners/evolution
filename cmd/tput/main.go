@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-var version = "9.4.0-dev"
+var version = "10.0.0-dev"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, terminalSize))

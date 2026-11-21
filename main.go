@@ -7,7 +7,7 @@ import (
 	"github.com/xp-runners/evolution/cmd"
 )
 
-var version = "9.4.0-dev"
+var version = "10.0.0-dev"
 
 func main() {
 	exe, err := os.Executable()
