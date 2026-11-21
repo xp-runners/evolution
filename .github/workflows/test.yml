@@ -28,6 +28,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Remove composer config
+        run: rm -rf /home/runner/.composer
+
       - name: Test
         run: go test ./...
 
