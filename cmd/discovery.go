@@ -78,7 +78,7 @@ func systemTimezone() string {
 }
 
 func (c *commandline) list(out io.Writer) (int, error) {
-	fmt.Fprintf(out, "\033[33m@%s\033[0m\n", os.Args[0])
+	fmt.Fprintf(out, "\x1b[33m@%s\x1b[0m\n", os.Args[0])
 	fmt.Fprintln(out, "XP Subcommands")
 	fmt.Fprintln(out, "════════════════════════════════════════════════════════════════════════")
 	fmt.Fprintln(out)
@@ -138,7 +138,7 @@ func (c *commandline) list(out io.Writer) (int, error) {
 				fmt.Fprintf(out, "> %s %s\n\n", kind, dir)
 				found = true
 			}
-			fmt.Fprintf(out, "  $ xp %s (from \033[4;34m%s/%s\033[0m)\n", p.commandName(), p.Name, p.Package)
+			fmt.Fprintf(out, "  $ xp %s (from \x1b[4;34m%s/%s\x1b[0m)\n", p.commandName(), p.Name, p.Package)
 		}
 	}
 	for _, m := range c.Modules {

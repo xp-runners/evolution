@@ -127,7 +127,7 @@ func TestPluginDiscoveryAndHelp(t *testing.T) {
 		t.Errorf("help argv = %q", got)
 	}
 	var out bytes.Buffer
-	if status, err := c.list(&out); status != 0 || err != nil || !strings.Contains(out.String(), "$ xp check (from acme/tools)") {
+	if status, err := c.list(&out); status != 0 || err != nil || !strings.Contains(out.String(), "$ xp check (from \x1b[4;34macme/tools\x1b[0m)") {
 		t.Fatalf("list: status=%d err=%v output=%q", status, err, out.String())
 	}
 }
