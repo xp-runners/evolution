@@ -1,5 +1,6 @@
 XP Runners
 ==========
+[![Build status](https://github.com/xp-runners/evolution/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/xp-runners/evolution/actions/workflows/test.yml)
 [![BSD License](https://raw.githubusercontent.com/xp-framework/web/master/static/licence-bsd.png)](https://github.com/xp-runners/evolution/blob/master/LICENSE.md)
 
 
