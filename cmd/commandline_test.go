@@ -23,8 +23,8 @@ func mustParse(exe string, args []string) *commandline {
 	return cmd
 }
 
-func Test_run_is_default_command(t *testing.T) {
-	assertEqual("run", mustParse("xp", []string{}).Command, t)
+func Test_help_is_default_command(t *testing.T) {
+	assertEqual("help", mustParse("xp", []string{}).Command, t)
 }
 
 func Test_version_command(t *testing.T) {

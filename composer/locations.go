@@ -46,10 +46,13 @@ func LocationsOn(sys string) []string {
 		break
 
 	default:
-		if dir, ok := xdgConfigDir(); ok {
+		legacy := filepath.Join(os.Getenv("HOME"), ".composer")
+		if info, err := os.Stat(legacy); err == nil && info.IsDir() {
+			locations = append(locations, filepath.Join(legacy, VendorDir))
+		} else if dir, ok := xdgConfigDir(); ok {
 			locations = append(locations, filepath.Join(dir, "composer", VendorDir))
 		} else {
-			locations = append(locations, filepath.Join(os.Getenv("HOME"), ".composer", VendorDir))
+			locations = append(locations, filepath.Join(legacy, VendorDir))
 		}
 	}
 

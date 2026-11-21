@@ -5,8 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
-	"syscall"
 
 	"github.com/xp-runners/evolution/composer"
 	"github.com/xp-runners/evolution/utf7"
@@ -19,7 +19,13 @@ var commands = map[string]command{
 	"eval":    &eval{},
 	"version": &version{},
 	"help":    &help{},
+	"ar":      &entryCommand{"xp.xar.Runner"},
 }
+
+type entryCommand struct{ class string }
+
+func (e entryCommand) Arguments(args []string) []string { return append([]string{e.class}, args...) }
+func (e entryCommand) Modules() []string                { return nil }
 
 // NewCmd returns an executable command
 func NewCmd(c *commandline) (*exec.Cmd, error) {
@@ -28,51 +34,84 @@ func NewCmd(c *commandline) (*exec.Cmd, error) {
 		return nil, err
 	}
 
-	command, err := lookupCommand(c)
+	resolved, err := lookupCommand(c)
 	if err != nil {
 		return nil, err
 	}
 
-	// Pass system configuration
-	args := []string{
-		"-C", "-q",
-		"-dmagic_quotes_gpc=0",
-		"-dinclude_path=\"" + includePath(*c.Config.Use(), append(c.Modules, command.Modules()...), c.Paths) + "\"",
-		"-ddate.timezone=Europe/Berlin", // TBI: Determine this from system TZ
+	config, err := c.settings()
+	if err != nil {
+		return nil, err
 	}
-	for name, value := range c.Config.Arguments() {
-		args = append(args, "-d"+name+"=\""+value+"\"")
+	runtime, err := splitArgs(config.executable)
+	if err != nil || len(runtime) == 0 || runtime[0] == "" {
+		return nil, fmt.Errorf("invalid PHP runtime %q", config.executable)
 	}
-	for _, value := range c.Config.Extensions() {
-		args = append(args, "-dextension="+value)
+	if config.use == nil {
+		for _, vendor := range c.vendors() {
+			path := filepath.Join(vendor, "xp-framework", "core")
+			if info, err := os.Stat(path); err == nil && info.IsDir() {
+				config.use = append(config.use, path)
+			}
+		}
+	}
+	paths := c.Paths
+	if c.script != nil {
+		extra, err := c.script.classPath(c)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(append([]string{}, paths...), extra...)
+	}
+	modules := append(append([]string{}, c.Modules...), resolved.Modules()...)
+	args := append(runtime[1:], "-C", "-q", "-d", iniArg("include_path", includePath(config.use, modules, paths)), "-d", "date.timezone="+systemTimezone())
+	for _, value := range config.extensions {
+		args = append(args, "-d", iniArg("extension", value))
+	}
+	keys := make([]string, 0, len(config.args))
+	for name := range config.args {
+		keys = append(keys, name)
+	}
+	sort.Strings(keys)
+	for _, name := range keys {
+		for _, value := range config.args[name] {
+			args = append(args, "-d", iniArg(name, value))
+		}
 	}
 
 	// Append command arguments
 	args = append(args, main)
-	for _, arg := range command.Arguments(c.Args) {
+	for _, arg := range resolved.Arguments(c.Args) {
 		args = append(args, utf7.Encode(arg))
 	}
 
-	cmd := exec.Command(*c.Config.Exe(), args...)
+	cmd := exec.Command(runtime[0], args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = append(
+	name := c.Command
+	if _, ok := resolved.(*plugin); ok {
+		name = "plugin"
+	}
+	cmd.Env, err = c.expandEnv(append(
 		os.Environ(),
-		"XP_EXE="+*c.Config.Exe(),
+		"XP_EXE="+c.Exe,
 		"XP_VERSION="+c.Version,
-		"XP_MODEL="+c.Model.String(),
-		"XP_COMMAND="+c.Command,
-	)
+		"XP_MODEL="+c.Model.Name(),
+		"XP_COMMAND="+name,
+	))
+	return cmd, err
+}
 
-	// fmt.Printf("%+v\n", cmd)
-	return cmd, nil
+func iniArg(name, value string) string {
+	// PHP parses each -d value as INI, independently of shell quoting.
+	return name + `="` + strings.ReplaceAll(value, `"`, `\"`) + `"`
 }
 
 func locate(files ...string) (string, error) {
 	for _, file := range files {
-		if _, err := os.Stat(file); err == nil {
-			return file, nil
+		if info, err := os.Stat(file); err == nil && !info.IsDir() {
+			return filepath.Abs(file)
 		}
 		// Continue
 	}
@@ -81,43 +120,75 @@ func locate(files ...string) (string, error) {
 }
 
 func entry(dir, name string) (string, bool) {
-	matches, err := filepath.Glob(filepath.Join(dir, "bin", "xp.*."+name))
-	if err != nil || len(matches) == 0 {
+	bin := filepath.Join(dir, "bin")
+	files, err := os.ReadDir(bin)
+	if err != nil {
 		return "", false
 	}
-
-	return matches[0], true
+	for _, file := range files {
+		if file.IsDir() || strings.HasSuffix(file.Name(), ".bat") {
+			continue
+		}
+		if p, err := Plugin(name, dir, file.Name()); err == nil && p.commandName() == name {
+			return filepath.Join(bin, file.Name()), true
+		}
+	}
+	return "", false
 }
 
 func lookupCommand(c *commandline) (command, error) {
+	if c.script != nil {
+		return c.script, nil
+	}
+	if c.Command == "help" {
+		return resolveHelp(c)
+	}
 	if c, ok := commands[c.Command]; ok {
 		return c, nil
 	}
 
-	for _, dir := range append(c.Modules, composer.Locations()...) {
-		if entry, ok := entry(dir, c.Command); ok {
-			if c, err := Plugin(c.Command, dir, filepath.Base(entry)); err == nil {
+	return findPlugin(c, c.Command)
+}
+
+func findPlugin(c *commandline, name string) (*plugin, error) {
+	for _, dir := range append(append([]string{}, c.Modules...), ".") {
+		if file, ok := entry(dir, name); ok {
+			p, err := Plugin(name, dir, filepath.Base(file))
+			if err == nil {
+				p.local = true
+				return p, nil
+			}
+		}
+	}
+	for _, dir := range c.vendors() {
+		if entry, ok := entry(dir, name); ok {
+			if c, err := Plugin(name, dir, filepath.Base(entry)); err == nil {
 				return c, nil
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("No such command %s", c.Command)
+	return nil, fmt.Errorf("command not implemented: %s (run `xp list` to see available commands)", name)
 }
 
-func includePath(use string, modules, paths []string) string {
+func (c *commandline) vendors() []string {
+	locations := composer.Locations()
+	if c.project != nil {
+		if cwd, err := os.Getwd(); err == nil && len(locations) > 0 {
+			dir := c.project.VendorDir()
+			if !filepath.IsAbs(dir) {
+				dir = filepath.Join(cwd, dir)
+			}
+			locations[0] = dir
+		}
+	}
+	return locations
+}
+
+func includePath(use, modules, paths []string) string {
 	separator := string(os.PathListSeparator)
-	return fmt.Sprintf(
-		".%s%s%s%s%s%s.%s%s",
-		separator,
-		use,
-		separator,
-		strings.Join(modules, separator),
-		separator,
-		separator,
-		separator,
-		strings.Join(paths, separator),
-	)
+	return strings.Join(append(append([]string{"."}, use...), modules...), separator) +
+		separator + separator + strings.Join(append([]string{"."}, paths...), separator)
 }
 
 func exitStatus(err error) (int, error) {
@@ -126,8 +197,8 @@ func exitStatus(err error) (int, error) {
 	}
 
 	if exiterr, ok := err.(*exec.ExitError); ok {
-		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			return status.ExitStatus(), nil
+		if status := exiterr.ExitCode(); status >= 0 {
+			return status, nil
 		}
 	}
 

@@ -31,7 +31,7 @@ func Encode(in string) string {
 	var b []byte
 	for _, r := range in {
 		if section {
-			if strings.IndexRune(baseSet, r) > -1 {
+			if r == '-' || strings.IndexRune(baseSet, r) > -1 {
 				e += encodeSection(b) + "-" + string(r)
 				section = false
 			} else if strings.IndexRune(literal, r) > -1 {
@@ -41,7 +41,7 @@ func Encode(in string) string {
 				b = appendRune(b, r)
 			}
 		} else {
-			if r == '&' || r == '+' {
+			if r == '+' {
 				e += string(r) + "-"
 			} else if strings.IndexRune(literal, r) > -1 {
 				e += string(r)

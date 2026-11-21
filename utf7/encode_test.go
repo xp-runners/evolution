@@ -33,7 +33,8 @@ func Test_encoding_special_chars(t *testing.T) {
 		"£1":        "+AKM-1",
 		"£†":        "+AKMgIA-",
 		"1 + 1 = 2": "1 +- 1 +AD0 2",
-		"1&1":       "1&-1",
+		"1&1":       "1+ACY-1",
+		"£-":        "+AKM--",
 	}
 
 	for input, result := range fixtures {
