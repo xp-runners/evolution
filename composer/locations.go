@@ -8,6 +8,10 @@ import (
 )
 
 var VendorDir = "vendor"
+var StatDir = func(file string) bool {
+	info, err := os.Stat(file)
+	return err == nil && info.IsDir()
+}
 
 // See https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
 func xdgConfigDir() (string, bool) {
@@ -25,13 +29,10 @@ func xdgConfigDir() (string, bool) {
 
 // Locations returns composer locations for the current operating system
 func Locations() []string {
-	return LocationsOn(runtime.GOOS, func(file string) bool {
-		 info, err := os.Stat(file)
-		 return err == nil && info.IsDir()
-	})
+	return LocationsOn(runtime.GOOS, StatDir)
 }
 
-// LocationsFor returns composer locations on a given operating system
+// LocationsOn returns composer locations on a given operating system
 func LocationsOn(sys string, exists func(file string) bool) []string {
 	locations := []string{}
 

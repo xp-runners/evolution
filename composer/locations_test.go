@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -17,14 +18,29 @@ func assertEqual(expect, actual interface{}, t *testing.T) {
 	}
 }
 
-func export(name, value string, run func()) {
-	os.Setenv(name, value)
+func export(exports map[string]string, run func()) {
+	for _, v := range os.Environ() {
+		if strings.HasPrefix(v, "XDG_") {
+			if i := strings.Index(v, "="); i >= 0 {
+				os.Unsetenv(v[:i])
+				defer os.Setenv(v[:i], v[i+1:])
+			}
+		}
+	}
+
+	for name, value := range exports {
+		os.Setenv(name, value)
+	}
+
 	run()
-	os.Unsetenv(name)
+
+	for name, _ := range exports {
+		os.Unsetenv(name)
+	}
 }
 
 func Test_locations_uses_runtime_os(t *testing.T) {
-	assertEqual(LocationsOn(runtime.GOOS, NoFile), Locations(), t)
+	assertEqual(LocationsOn(runtime.GOOS, StatDir), Locations(), t)
 }
 
 func Test_locations_starts_with_cwd(t *testing.T) {
@@ -50,17 +66,19 @@ func Test_unix_location(t *testing.T) {
 }
 
 func Test_unix_location_fallback(t *testing.T) {
-	assertEqual(filepath.Join(os.Getenv("HOME"), ".composer", VendorDir), LocationsOn("unix", NoFile)[1], t)
+	export(map[string]string{}, func() {
+		assertEqual(filepath.Join(os.Getenv("HOME"), ".composer", VendorDir), LocationsOn("unix", NoFile)[1], t)
+	})
 }
 
 func Test_xdg_location_with_config_home(t *testing.T) {
-	export("XDG_CONFIG_HOME", ".config", func() {
+	export(map[string]string{"XDG_CONFIG_HOME": ".config"}, func() {
 		assertEqual(filepath.Join(".config", "composer", VendorDir), LocationsOn("unix", NoFile)[1], t)
 	})
 }
 
 func Test_xdg_location(t *testing.T) {
-	export("XDG_DATA_HOME", ".data", func() {
+	export(map[string]string{"XDG_DATA_HOME": ".data"}, func() {
 		assertEqual(filepath.Join(os.Getenv("HOME"), ".config", "composer", VendorDir), LocationsOn("unix", NoFile)[1], t)
 	})
 }
