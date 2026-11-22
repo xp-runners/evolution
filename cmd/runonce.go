@@ -1,7 +1,5 @@
 package cmd
 
-import "fmt"
-
 type runonce struct {
 }
 
@@ -9,11 +7,11 @@ type runonce struct {
 func (r runonce) Run(c *commandline) (int, error) {
 	cmd, err := NewCmd(c)
 	if err != nil {
-		return 2, fmt.Errorf("could not create process: %w", err)
+		return 2, err
 	}
 
 	if err := cmd.Start(); err != nil {
-		return 2, fmt.Errorf("could not start process: %w", err)
+		return 2, err
 	}
 
 	return exitStatus(cmd.Wait())

@@ -163,7 +163,7 @@ func findPlugin(c *commandline, name string) (*plugin, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("command not implemented: %s (run `xp list` to see available commands)", name)
+	return nil, fmt.Errorf("Command not implemented: %s (run `xp list` to see available commands)", name)
 }
 
 func (c *commandline) vendors() []string {
