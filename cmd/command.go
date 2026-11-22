@@ -27,6 +27,14 @@ type entryCommand struct{ class string }
 func (e entryCommand) Arguments(args []string) []string { return append([]string{e.class}, args...) }
 func (e entryCommand) Modules() []string                { return nil }
 
+// DetailedError separates an error message from additional user guidance.
+type DetailedError struct {
+	Message string
+	Details string
+}
+
+func (e *DetailedError) Error() string { return e.Message }
+
 // NewCmd returns an executable command
 func NewCmd(c *commandline) (*exec.Cmd, error) {
 	main, err := locate(filepath.Join(filepath.Dir(c.Exe), "class-main.php"), "class-main.php")
@@ -163,7 +171,10 @@ func findPlugin(c *commandline, name string) (*plugin, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("Command not implemented: %s (run `xp list` to see available commands)", name)
+	return nil, &DetailedError{
+		Message: fmt.Sprintf("Command not implemented: %s", name),
+		Details: "Run `xp list` to see available commands",
+	}
 }
 
 func (c *commandline) vendors() []string {

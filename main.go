@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -11,8 +12,14 @@ var version = "10.0.0-dev"
 
 func exit(status int, err error) {
 	fmt.Fprintf(os.Stderr, "\x1b[33m@%s\x1b[0m\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "\x1b[41;37m ERROR \x1b[0;37m %v \x1b[0m", err)
+	fmt.Fprintf(os.Stderr, "\x1b[41;37m ERROR \x1b[0;37m %s \x1b[0m", err.Error())
 	fmt.Fprintln(os.Stderr)
+
+	var detailed *cmd.DetailedError
+	if errors.As(err, &detailed) && detailed.Details != "" {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, detailed.Details)
+	}
 	os.Exit(status)
 }
 
