@@ -19,13 +19,8 @@ var commands = map[string]command{
 	"eval":    &eval{},
 	"version": &version{},
 	"help":    &help{},
-	"ar":      &entryCommand{"xp.xar.Runner"},
+	"ar":      &entry{"xp.xar.Runner"},
 }
-
-type entryCommand struct{ class string }
-
-func (e entryCommand) Arguments(args []string) []string { return append([]string{e.class}, args...) }
-func (e entryCommand) Modules() []string                { return nil }
 
 // DetailedError separates an error message from additional user guidance.
 type DetailedError struct {
@@ -53,7 +48,7 @@ func NewCmd(c *commandline) (*exec.Cmd, error) {
 	}
 	runtime, err := splitArgs(config.executable)
 	if err != nil || len(runtime) == 0 || runtime[0] == "" {
-		return nil, fmt.Errorf("invalid PHP runtime %q", config.executable)
+		return nil, fmt.Errorf("Invalid PHP runtime %q", config.executable)
 	}
 	if config.use == nil {
 		for _, vendor := range c.vendors() {
@@ -122,7 +117,7 @@ func locate(files ...string) (string, error) {
 	return "", fmt.Errorf("Failed to locate %v", files)
 }
 
-func entry(dir, name string) (string, bool) {
+func entryPoint(dir, name string) (string, bool) {
 	bin := filepath.Join(dir, "bin")
 	files, err := os.ReadDir(bin)
 	if err != nil {
@@ -155,7 +150,7 @@ func lookupCommand(c *commandline) (command, error) {
 
 func findPlugin(c *commandline, name string) (*plugin, error) {
 	for _, dir := range append(append([]string{}, c.Modules...), ".") {
-		if file, ok := entry(dir, name); ok {
+		if file, ok := entryPoint(dir, name); ok {
 			p, err := Plugin(name, dir, filepath.Base(file))
 			if err == nil {
 				p.local = true
@@ -164,7 +159,7 @@ func findPlugin(c *commandline, name string) (*plugin, error) {
 		}
 	}
 	for _, dir := range c.vendors() {
-		if entry, ok := entry(dir, name); ok {
+		if entry, ok := entryPoint(dir, name); ok {
 			if c, err := Plugin(name, dir, filepath.Base(entry)); err == nil {
 				return c, nil
 			}
