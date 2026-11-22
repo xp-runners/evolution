@@ -64,9 +64,9 @@ func NewCmd(c *commandline) (*exec.Cmd, error) {
 		paths = append(append([]string{}, paths...), extra...)
 	}
 	modules := append(append([]string{}, c.Modules...), resolved.Modules()...)
-	args := append(runtime[1:], "-C", "-q", "-d", iniArg("include_path", includePath(config.use, modules, paths)), "-d", "date.timezone="+systemTimezone())
+	args := append(runtime[1:], "-C", "-q", "-d", "include_path="+includePath(config.use, modules, paths), "-d", "date.timezone="+systemTimezone())
 	for _, value := range config.extensions {
-		args = append(args, "-d", iniArg("extension", value))
+		args = append(args, "-d", "extension="+value)
 	}
 	keys := make([]string, 0, len(config.args))
 	for name := range config.args {
@@ -75,7 +75,7 @@ func NewCmd(c *commandline) (*exec.Cmd, error) {
 	sort.Strings(keys)
 	for _, name := range keys {
 		for _, value := range config.args[name] {
-			args = append(args, "-d", iniArg(name, value))
+			args = append(args, "-d", name+"="+value)
 		}
 	}
 
@@ -101,11 +101,6 @@ func NewCmd(c *commandline) (*exec.Cmd, error) {
 		"XP_COMMAND="+name,
 	))
 	return cmd, err
-}
-
-func iniArg(name, value string) string {
-	// PHP parses each -d value as INI, independently of shell quoting.
-	return name + `="` + strings.ReplaceAll(value, `"`, `\"`) + `"`
 }
 
 func locate(files ...string) (string, error) {
