@@ -76,8 +76,8 @@ func TestDispatch(t *testing.T) {
 func TestRuntimeConfigPrecedence(t *testing.T) {
 	dir := useProject(t)
 	t.Setenv("XP_RT", "selected")
-	fixture(t, "xp.ini", "[runtime]\nflag=base\n[runtime@selected]\ndefault=selected-php\nflag='a b'\nflag=second")
-	fixture(t, "home/.xp/xp.ini", "[runtime]\nflag=low\nlow=yes")
+	fixture(t, "xp.ini", "[runtime]\nflag=base\nextension=one\nextension=two\n[runtime@selected]\ndefault=selected-php\nflag='a b'\nflag=second\nextension=two\nextension=three")
+	fixture(t, "home/.xp/xp.ini", "[runtime]\nflag=low\nlow=yes\nextension=one\nextension=four")
 	c, err := Parse(filepath.Join(dir, "bin", "xp"), []string{"-v"}, filepath.Join(dir, "home"), "", VERSION)
 	if err != nil {
 		t.Fatal(err)
@@ -88,6 +88,9 @@ func TestRuntimeConfigPrecedence(t *testing.T) {
 	}
 	if s.executable != "selected-php" || !reflect.DeepEqual(s.args["flag"], []string{"a b", "second"}) || s.args["low"][0] != "yes" {
 		t.Fatalf("unexpected settings: %#v", s)
+	}
+	if want := []string{"one", "two", "three", "four"}; !reflect.DeepEqual(s.extensions, want) {
+		t.Fatalf("extensions = %q; want unique extensions %q", s.extensions, want)
 	}
 	c = mustParse("xp", []string{"-c", "home/.xp", "-v"})
 	s, err = c.settings()

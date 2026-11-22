@@ -104,6 +104,7 @@ func (c *commandline) settings() (settings, error) {
 		}
 	}
 
+	extensions := make(map[string]struct{})
 	for _, file := range sources {
 		if s.executable == "" {
 			if value, ok := file.get("runtime@"+rt, "default"); ok {
@@ -120,7 +121,10 @@ func (c *commandline) settings() (settings, error) {
 					case "default":
 					case "extension":
 						for _, ext := range values {
-							s.extensions = append(s.extensions, ext)
+							if _, exists := extensions[ext]; !exists {
+								s.extensions = append(s.extensions, ext)
+								extensions[ext] = struct{}{}
+							}
 						}
 					default:
 						args[key] = values
