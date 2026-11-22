@@ -11,8 +11,7 @@ Getting started
 To install the XP runners, you can choose between the generic installer:
 
 ```sh
-$ curl -sSL https://github.com/xp-runners/evolution/releases/download/v10.0.0/setup-10.0.0.sh | sh
-# ...
+curl -sSL https://github.com/xp-runners/evolution/releases/download/v10.0.0/setup-10.0.0.sh | sh
 ```
 
 Then, install the framework and you're all set to go:
@@ -29,6 +28,14 @@ FileSystemCL<$APPDATA/Composer/vendor/xp-framework/core/src/test/php>
 FileSystemCL<$APPDATA/Composer/vendor/xp-framework/core/src/main/resources>
 FileSystemCL<$APPDATA/Composer/vendor/xp-framework/core/src/test/resources>
 FileSystemCL<.>
+```
+
+Docker
+------
+Use the following inside your *Dockerfile*. This installs the `xp` runner binary and the entry point PHP files to `/usr/bin`:
+
+```Dockerfile
+RUN curl -sSL https://github.com/xp-runners/evolution/releases/download/v10.0.0/xp-linux-amd64-10.0.0.tar.gz | tar xvz -C /usr/bin
 ```
 
 Commands
