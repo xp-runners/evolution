@@ -219,7 +219,7 @@ main() {
 
   TARFILE=$(mktemp -u "$temp/tmp.XXXXXXXXXX")
   echo "> Download $SOURCE"
-  download https://github.com/xp-runners/reference/releases/download/v@VERSION@/$SOURCE $TARFILE
+  download https://github.com/xp-runners/evolution/releases/download/v@VERSION@/$SOURCE $TARFILE
 
   run 'Extract' "tar xvfz $TARFILE $EXTRACT"
   run 'Test' "ls -al $(pwd)/xp.exe"
