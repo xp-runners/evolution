@@ -4,7 +4,7 @@ set -euo pipefail
 ORIGIN=$(pwd)
 TARGET=$ORIGIN/$1
 VERSION=${GITHUB_REF#refs/tags/v*}
-ldflags="-s -w -X main.version=$VERSION"
+ldflags="-s -w -X github.com/xp-runners/evolution/internal/version.Number=$VERSION"
 
 mkdir -p $TARGET
 rm -rf $TARGET/*

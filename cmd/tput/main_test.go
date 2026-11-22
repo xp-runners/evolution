@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/xp-runners/evolution/internal/version"
 )
 
 func TestRun(t *testing.T) {
@@ -16,7 +18,7 @@ func TestRun(t *testing.T) {
 		wantStatus int
 	}{
 		{name: "usage", wantErr: "usage: tput [-V] [-S] capname\n", wantStatus: 1},
-		{name: "version", args: []string{"-V"}, wantOut: "xp-runners " + version + "\n"},
+		{name: "version", args: []string{"-V"}, wantOut: "xp-runners " + version.Number + "\n"},
 
 		// Arguments
 		{name: "lines", args: []string{"lines"}, wantOut: "28\n"},

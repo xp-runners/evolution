@@ -6,9 +6,8 @@ import (
 	"os"
 
 	"github.com/xp-runners/evolution/cmd"
+	"github.com/xp-runners/evolution/internal/version"
 )
-
-var version = "10.0.0-dev"
 
 func exit(status int, err error) {
 	fmt.Fprintf(os.Stderr, "\x1b[33m@%s\x1b[0m\n", os.Args[0])
@@ -29,7 +28,7 @@ func main() {
 		exit(1, err)
 	}
 
-	command, err := cmd.Parse(exe, os.Args[1:], os.Getenv("HOME"), os.Getenv("LOCALAPPDATA"), version)
+	command, err := cmd.Parse(exe, os.Args[1:], os.Getenv("HOME"), os.Getenv("LOCALAPPDATA"), version.Number)
 	if err != nil {
 		exit(2, err)
 	}

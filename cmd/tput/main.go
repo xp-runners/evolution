@@ -8,9 +8,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-)
 
-var version = "10.0.0-dev"
+	"github.com/xp-runners/evolution/internal/version"
+)
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, terminalSize))
@@ -22,7 +22,7 @@ func run(args []string, in io.Reader, out, stderr io.Writer, size func() (cols, 
 		return 1
 	}
 	if args[0] == "-V" {
-		fmt.Fprintln(out, "xp-runners", version)
+		fmt.Fprintln(out, "xp-runners", version.Number)
 		return 0
 	}
 
