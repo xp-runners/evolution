@@ -104,7 +104,7 @@ func (c *commandline) settings() (settings, error) {
 		}
 	}
 
-	for i, file := range sources {
+	for _, file := range sources {
 		if s.executable == "" {
 			if value, ok := file.get("runtime@"+rt, "default"); ok {
 				s.executable = value
@@ -119,17 +119,7 @@ func (c *commandline) settings() (settings, error) {
 					switch key {
 					case "default":
 					case "extension":
-						if i != 0 {
-							continue
-						}
 						for _, ext := range values {
-							if !strings.Contains(ext, ".") {
-								if runtime.GOOS == "windows" {
-									ext = "php_" + ext + ".dll"
-								} else {
-									ext += ".so"
-								}
-							}
 							s.extensions = append(s.extensions, ext)
 						}
 					default:
