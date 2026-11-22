@@ -29,5 +29,5 @@ echo
 echo "=> Windows (amd64)"
 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$ldflags" -o "xp.exe" .
 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$ldflags" -o "tput.exe" ./cmd/tput
-zip -j "$TARGET/xp-windows-amd64-$VERSION" xp.exe tput.exe class-main.php web-main.php
-ls -al "$TARGET/xp-windows-amd64-$VERSION"
+tar cvfz -j "$TARGET/xp-windows-amd64-$VERSION.tar.gz" xp.exe tput.exe class-main.php web-main.php
+ls -al "$TARGET/xp-windows-amd64-$VERSION.tar.gz"
