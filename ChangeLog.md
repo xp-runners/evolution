@@ -3,7 +3,7 @@ XP Runners change log
 
 ## ?.?.? / ????-??-??
 
-## 10.0.0 / ????-??-??
+## 10.0.0 / 2026-11-22
 
 * Fixed issue #2: Startup warnings (caused by quoting command line args)
   (@thekid)
